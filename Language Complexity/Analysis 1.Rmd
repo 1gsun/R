@@ -1,6 +1,8 @@
 ---
 title: "R Notebook"
-output: html_notebook
+output:
+  html_document: default
+  html_notebook: default
 ---
 
 ```{r message=FALSE}
@@ -11,10 +13,8 @@ library(quanteda)
 library(dplyr)
 ```
 
-
+#### Loading British National Corpus(BNC)
 ```{r}
-#loading file 
-
 BNC <- readtext("BNC/*.txt", docvarsfrom=c("filenames"), docvarnames = "id")
 
 BNC_corpus <- corpus(BNC)
@@ -36,11 +36,10 @@ docvar_info <- left_join(bnc_docvars,df_bnc_docvars,by = c("id" = "id"))
 docvars(BNC_corpus)$mode <- df_bnc_docvars$mode
 docvars(BNC_corpus)$domain <- df_bnc_docvars$domain
 
-#unique(df_bnc_docvars$domain)
-
-
+# subset written files from the original corpus 
 BNC_sub_corpus <- corpus_subset(BNC_corpus,mode == "written")
 
+# further subset from certain topics 
 BNC_select_domain <- c("social_science","world_affairs","arts","leisure","commerce_finance")
 
 BNC_sub_corpus <- corpus_subset(BNC_sub_corpus,domain %in% BNC_select_domain)
@@ -50,7 +49,7 @@ BNC_dfm <- dfm(BNC_sub_corpus,stem = F,remove_punct = TRUE , tolower = T)
 ```
 
 
-
+#### Loading Open American National Corpus(OANC)
 ```{r}
 OANC <- readtext("OANC/*.txt", docvarsfrom=c("filenames"))
 
@@ -59,10 +58,8 @@ OANC_corpus <- corpus(OANC)
 OANC_dfm <- dfm(OANC_corpus,stem = F, remove_punct = TRUE , tolower = T)
 ```
 
-
+#### Flesch Reading Score of OANC 
 ```{r}
-## 3. First Try: FRE (No Pre-process)
-
 
 OANC_FRE <- textstat_readability(texts(OANC_corpus, groups = "docvar2"), "Flesch")
 
@@ -76,6 +73,7 @@ print(mean(OANC_FRE))
 #write.csv(OANC_FRE,file= "OANC_FRE.csv")
 ```
 
+#### Flesch Reading Score of BNC 
 ```{r}
 BNC_FRE <- textstat_readability(texts(BNC_sub_corpus, groups = "id"), "Flesch")
 
@@ -87,6 +85,7 @@ print(sd(BNC_FRE))
 
 ```
 
+####Plot the distribution of FRE scores from different corpus 
 ```{r}
 xfit <- seq(min(OANC_FRE),max(OANC_FRE),length = 4000)
 yfit <- dnorm(xfit,mean = mean(OANC_FRE), sd = sd(OANC_FRE))
@@ -94,20 +93,18 @@ yfit <- dnorm(xfit,mean = mean(OANC_FRE), sd = sd(OANC_FRE))
 xfit1 <- seq(min(BNC_FRE),max(BNC_FRE),length = 4000)
 yfit1 <- dnorm(xfit1,mean = mean(BNC_FRE), sd = sd(BNC_FRE))
 
-
-
-
 plot(xfit,yfit,type = "l",lty=2,xlim=c(0,100),
      xlab="number of documents", ylab="FRE score",main="FRE")
 lines(xfit1,yfit1)
 
 ```
-#t-test of FRE
+
+####t-test of FRE
 ```{r}
 t.test(BNC_FRE,OANC_FRE)
 ```
 
-
+####For common features, calculate feature weights 
 ```{r}
 
 BNC_feature <- featnames(BNC_dfm)
@@ -129,14 +126,12 @@ sum_OANC <- sum(OANC_freq)
 BNC_weight <- BNC_freq/sum_BNC
 OANC_weight <- OANC_freq/sum_OANC
 
-
 head(OANC_weight)
 head(BNC_weight)
 
 ```
 
-### Choose the top 10000 features and sorted by difference ranking in American English and British English 
-
+#### Choose the top 10000 features and sorted by difference ranking in OANC and BNC
 ```{r}
 top_british<- sort(BNC_freq,decreasing = TRUE)[1:10000]
 top_american <- sort(OANC_freq,decreasing = TRUE)[1:10000]
@@ -153,10 +148,7 @@ head(full_df[with(full_df, order(-difference)), ])
 
 ```
 
-# look into where does these words pop up 
-
-
-# for words that doesn't show up: 
+####Compare features doesn't have the same frequency rankings 
 ```{r}
 # in top 100 
 print(setdiff(names(top_american)[1:500],names(top_british)[1:500])) 
@@ -168,7 +160,7 @@ print(setdiff(names(top_british)[100:300],names(top_american)[100:300]))
 ```
 
 
-# compute the words difference in each language 
+#### compute number of the words frequency difference in each language 
 ```{r}
 diff_pct <- c()
 
@@ -182,7 +174,29 @@ plot(diff_pct)
 
 ```
 
-##### Dale&Chall's Easy Word http://countwordsworth.com/blog/dale-chall-easy-word-list-text-file/
+####Dale.Chall Reading Score of OANC and BNC 
+```{r}
+OANC_DALE<- textstat_readability(texts(OANC_corpus, groups = "docvar2"), "Dale.Chall")
+BNC_DALE <- textstat_readability(texts(BNC_sub_corpus, groups = "id"), "Dale.Chall")
+
+```
+
+####Plot the distribution of Dale.Chall scores from different corpus 
+```{r}
+hist(OANC_DALE, breaks=500, col="red",xlim=c(-70,-30))
+hist(BNC_DALE, breaks=500, col="red",xlim=c(-70,-30))
+
+print (mean(OANC_DALE) - mean(BNC_DALE))
+
+print(var(OANC_DALE))
+print(var(BNC_DALE))
+
+```
+
+
+
+#### Compare features INCLUDED in Dale&Chall's Easy Word List
+######http://countwordsworth.com/blog/dale-chall-easy-word-list-text-file/
 
 ```{r}
 dale <- read.csv("/Volumes/SD Card/dale.csv",header = FALSE)
@@ -209,17 +223,18 @@ dale_full_df<- merge(x = BNC_dale_df,y = OANC_dale_df,by= "features")
 dale_full_df["diff"] <- abs(dale_full_df["BNC_weight"]-dale_full_df["OANC_weight"])
 
 
-
 hist(dale_full_df$BNC_weight, breaks=1000,xlim = c(0.00,0.002))
 hist(dale_full_df$OANC_weight, breaks=1000,xlim = c(0.00,0.002))
 
-mean(dale_full_df$BNC_weight) - mean(dale_full_df$OANC_weight)
-var(dale_full_df$BNC_weight) - var(dale_full_df$OANC_weight)
+print(mean(dale_full_df$BNC_weight) - mean(dale_full_df$OANC_weight))
 
+print(var(dale_full_df$BNC_weight) - var(dale_full_df$OANC_weight))
 
 head(dale_full_df[with(dale_full_df, order(-diff)), ])
 ```
-# is there any words outside the list is very frequent? 
+
+
+#### Compare features EXCLUDED in Dale&Chall's Easy Word List
 ```{r}
 dale <- read.csv("/Volumes/SD Card/dale.csv",header = FALSE)
 
@@ -248,33 +263,12 @@ dale_full_df_rm<- merge(x = BNC_dale_df_rm,y = OANC_dale_df_rm,by= "features")
 dale_full_df_rm["diff"] <- dale_full_df_rm["BNC_weight"]-dale_full_df_rm["OANC_weight"]
 
 
-sum(dale_full_df_rm$BNC_weight) - sum(dale_full_df_rm$OANC_weight)
-var(dale_full_df_rm$BNC_weight) - var(dale_full_df_rm$OANC_weight)
+print(mean(dale_full_df_rm$BNC_weight) - mean(dale_full_df_rm$OANC_weight))
+print(var(dale_full_df_rm$BNC_weight) - var(dale_full_df_rm$OANC_weight))
 
 
 head(dale_full_df_rm[with(dale_full_df_rm, order(-diff)), ])
 
-sum(dale_full_df_rm$diff)
-```
-
-```{r}
-OANC_DALE<- textstat_readability(texts(OANC_corpus, groups = "docvar2"), "Dale.Chall")
-BNC_DALE <- textstat_readability(texts(BNC_sub_corpus, groups = "id"), "Dale.Chall")
-
-```
-
-```{r}
-hist(OANC_DALE, breaks=500, col="red",xlim=c(-70,-30))
-hist(BNC_DALE, breaks=500, col="red",xlim=c(-70,-30))
-
-mean(OANC_DALE) - mean(BNC_DALE)
-
-var(OANC_DALE) 
-var(BNC_DALE)
-
-
-write.csv(OANC_DALE,"OANC_DALE.csv")
-write.csv(BNC_DALE,"BNC_DALE.csv")
 ```
 
 
