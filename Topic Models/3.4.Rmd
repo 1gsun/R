@@ -1,0 +1,62 @@
+---
+output: html_document
+---
+```{r include=FALSE, message=FALSE}
+setwd("/Users/sunevan/Dropbox/Spring 2017/Text As Data/HW3")
+library(quanteda)
+library(quantedaData)
+library(lda)
+library(stm)
+library(topicmodels)
+library(tidytext)
+library(ggplot2)
+library(reshape2)
+library(dplyr)
+library(geometry)
+library(Rtsne)
+```
+
+
+###4(a)
+```{r}
+data("data_corpus_SOTU", package = "quantedaData")
+
+SOTU <- corpus_subset(data_corpus_SOTU,as.integer(substr(data_corpus_SOTU[["Date"]]$Date,1,4)) >=1970) 
+
+print(SOTU)
+```
+
+###4(b)
+```{r}
+
+Q4dfm <- dfm(SOTU, stem=TRUE, remove = stopwords("english"), remove_punct = TRUE)
+
+wordfish_fit <- textmodel_wordfish(Q4dfm,c(13,44))
+
+plot(SOTU[["Date"]]$Date,wordfish_fit@theta)
+
+```
+
+###4(c)
+```{r}
+#most left-wing
+print(SOTU[["President"]]$President[which.max(wordfish_fit@theta)])
+
+#most right-wing
+print(SOTU[["President"]]$President[which.min(wordfish_fit@theta)])
+```
+
+
+#####It is not surprise to see President Clinton to be the most left-wing. But, it is surprised that President Carter is the most right-wing as a democrat. But, it is probably not too surprising since President Carter is known as a conservative democrat, so his speech may discuss more conservative topics. 
+
+###4(d)
+```{r}
+words <- wordfish_fit@psi 
+weights <- wordfish_fit@beta
+plot(weights,words)
+```
+
+##### Words on the y-axis is the logged mean count of each word. So, the larger the words(Beta) is, it means it happens very often in each document. When it is 0, it means on average the word happends once each. The smaller means the words happens less often, which carries more distinct information and thus have a higher weights. So the weights are larger (either positive or negative) when the logged mean count of words is smaller. 
+
+###4(e)
+

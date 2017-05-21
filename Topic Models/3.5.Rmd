@@ -1,0 +1,82 @@
+---
+output: html_document
+---
+```{r include=FALSE, message=FALSE}
+setwd("/Users/sunevan/Dropbox/Spring 2017/Text As Data/HW3")
+library(quanteda)
+library(quantedaData)
+library(lda)
+library(stm)
+library(topicmodels)
+library(tidytext)
+library(ggplot2)
+library(reshape2)
+library(dplyr)
+library(geometry)
+library(Rtsne)
+library(bursts)
+library(readtext)
+```
+
+###5(a)
+```{r}
+bursty<-function(word="sioux",DTM, date){
+  word.vec <- DTM[,which(colnames(DTM) == word)]
+  if(length(word.vec) == 0){
+    print(word, " does not exist in this corpus.")
+  } else{
+    word.times <- c(0,which(as.vector(word.vec)>0))
+    kl <- kleinberg(word.times, gamma=.5)
+    kl$start <- date[kl$start+1]
+    kl$end <- date[kl$end]
+    max_level <- max(kl$level)
+    plot(c(kl$start[1], kl$end[1]), c(1,max_level),
+         type = "n", xlab = "Time", ylab = "Level", bty = "n",
+         xlim = c(kl$start[1], kl$end[1]), ylim = c(1, max_level),
+         yaxt = "n")
+    axis(2, at = 1:max_level)
+    for(i in 1:nrow(kl)){
+      if(kl$start[i] != kl$end[i]){
+        arrows(kl$start[i], kl$level[i], kl$end[i], kl$level[i], code = 3, angle = 90,
+               length = 0.05)
+      } else{
+        points(kl$start[i], kl$level[i])
+      }
+    }
+    print(kl)
+  }
+    #note deviation from standard defaults bec don't have that much data
+}
+
+list.files(path = "Native American Treaties/")
+treaties <- readtext("Native American Treaties/*.txt", docvarsfrom=c("filenames"))
+treaties_corpus <- corpus(treaties)
+
+cases <- read.csv("Native American Treaties/universecases.csv")
+date <- as.Date(as.character(cases$Date[1:365]), "%m-%d-%Y")
+
+docvars(treaties_corpus)$Date <- date
+
+DTM <- dfm(treaties_corpus)
+
+
+```
+
+####"Seminole"
+```{r}
+bursty("seminole",DTM,date)
+```
+
+#####"Semione" only appeared in a short amount of the time between 1832 to 1833. This was about the time before the Second Semione War that happened between 1835 and 1842. 
+
+####"The"
+```{r}
+bursty("the",DTM,date)
+```
+#####"The" is a stopword that happened all time in all treaties. So, it will be almost not possible for this word to represent a higher level unless some extreme cases. 
+
+####"Removal"
+```{r}
+bursty("removal",DTM,date)
+```
+#####"Removal" : the first time it poped up the second level was during Andrew Jackson's presidency, as he was trying to build a systematic apprach to Indian removal and encouraging Congress to adopt the removal act. And after 1840, which was the end of Second Seminole War, this word poped up again till the end of the period. It was probably becasue Indian Removal did not come to a full stop till a Third War ended in 1858. Before the third war, this was a strong topic the whole time. 

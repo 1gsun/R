@@ -1,0 +1,70 @@
+---
+output: html_document
+---
+```{r include=FALSE, message=FALSE}
+setwd("/Users/sunevan/Dropbox/Spring 2017/Text As Data/HW3")
+library(quanteda)
+library(quantedaData)
+library(lda)
+library(stm)
+library(topicmodels)
+library(tidytext)
+library(ggplot2)
+library(reshape2)
+library(dplyr)
+library(geometry)
+library(Rtsne)
+data("data_corpus_immigrationnews", package = "quantedaData")
+```
+
+
+###3(a)
+```{r}
+Q3CorpSub <- corpus_subset(data_corpus_immigrationnews,paperName %in% c("guardian","telegraph")) 
+
+Q3_df <- data.frame(text = Q3CorpSub$documents$texts,
+                    day = as.numeric(Q3CorpSub$documents$day),
+                    paperName = Q3CorpSub$documents$paperName)
+
+load("custom_stopwords.RData") 
+
+Q3 <- textProcessor(Q3_df$text, metadata = Q3_df, removestopwords = FALSE,  removepunctuation = TRUE,stem = F, customstopwords = custom_stopwords)
+
+```
+
+###3(b)
+```{r}
+Q3_prep <- prepDocuments(Q3$documents,Q3$vocab, Q3$meta, lower.thresh = 30)
+set.seed(10012)
+stm30 <- stm(Q3_prep$documents,Q3_prep$vocab,0,prevalence=~Q3_df$paperName + as.numeric(Q3_df$day),init.type = "Spectral", content = ~Q3_df$paperName)
+```
+###3(c)
+
+```{r}
+knitr::opts_chunk$set(fig.width=30, fig.height=20)
+plot(stm30,type = "summary")
+```
+```{r}
+labelTopics(stm30,c(10,17,39,8,21))
+```
+#####Topic 10: "UKIP in Elections"
+#####Topic 17: "Coalition"
+#####Topic 39: "Migration from EU"
+#####Topic 7: "Brokenshire's view on labor"
+#####Topic 43: "Entertainment"
+
+###3(d)
+```{r}
+Q3_prep$meta$day <- as.integer(Q3_prep$meta$day)
+day <- as.numeric(Q3CorpSub$documents$day)
+prep<-estimateEffect(c(10) ~ s(day) , stm30)
+plot(prep, "day", stm30, topics = c(10), method = "continuous")
+
+```
+##### This topic moved up over the time. It started pretty low and got an increase at the end. 
+
+
+```{r}
+plot(stm30, type="perspectives",topics = c(10))
+```
+##### Guardian focus more on UKIP's information, campaign, their leader, and who are the suppoters and Telegraph cares more about if people for UKIP and win the election.

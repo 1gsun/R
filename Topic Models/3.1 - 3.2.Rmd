@@ -1,0 +1,279 @@
+---
+title: 'HW3 - Wenjie Sun (ws854)'
+output: html_document
+---
+```{r include=FALSE}
+setwd("/Users/sunevan/Dropbox/Spring 2017/Text As Data/HW3")
+library(quanteda)
+library(quantedaData)
+library(lda)
+library(stm)
+library(topicmodels)
+library(tidytext)
+library(ggplot2)
+library(reshape2)
+library(dplyr)
+library(lsa)
+```
+
+
+##1
+###1(a)
+```{r}
+data("data_corpus_immigrationnews", package = "quantedaData")
+
+#freq of newspapers 
+paper <- data_corpus_immigrationnews[["paperName"]]$paperName
+paper_freq <- as.data.frame(table(paper))
+colnames(paper_freq) <- c("paper", "Freq")
+
+print(paper_freq[with(paper_freq,order(-Freq)),])
+```
+###1(b)
+```{r}
+top4_list<-paper_freq[with(paper_freq,order(-Freq)),][1:4,]$paper # top 4 papers
+print(top4_list)
+
+Q1CorpSub <- corpus_subset(data_corpus_immigrationnews,paperName %in% top4_list) #Create the subset
+
+load("custom_stopwords.RData") #load custom_stopwords 
+
+Q1dfm <- dfm(Q1CorpSub,stem = F, remove_punct = TRUE , tolower = T, remove = custom_stopwords) #dfm
+Q1dfm_trim <-dfm_trim(Q1dfm,min_count = 30,min_docfreq =20)
+
+print(Q1dfm)
+print(Q1dfm_trim)
+
+```
+###1(c)
+
+##### I think it is important to remove rare words becasue these rare words would not contribute much information for discovering commonly used words to form topics. Also, by removing rare words, this can greatly reduce the size of data and speed up the analysis. 
+
+
+###1(d)
+```{r}
+TM<-LDA(Q1dfm_trim, k = 30, method = "Gibbs",  control = list(seed = 10012,iter = 3000))
+print(TM)
+```
+###1(e)
+```{r}
+#The top 10 word for all 30 topics
+top30_terms<-get_terms(TM,10)
+
+print(top30_terms)
+
+# generate doc_topics and words_topics 
+doc_topics<-TM@gamma
+words_topics<-TM@beta
+doc_topics <- t(doc_topics)
+
+#calculate the top 5 topics has the highest sum of total contritubion 
+topic_contribution <- data.frame(total_contribution = rowSums(doc_topics),topic_number = c(1:30),stringsAsFactors = FALSE)
+top5_topic <- topic_contribution[with(topic_contribution,order(-total_contribution)),][1:5,]
+
+print(top5_topic)
+
+# narrow down to top 5 topics 
+print(get_terms(TM,20)[,top5_topic$topic_number])
+```
+##### Topic 1 - "Migrations": My guess this topic is about discussing the impact of migrants from EU to UK and some statistics 
+##### Topic 2 - "Elections" : It is probably discussing how many seats and votes will each party win in the election and (current) poll results. 
+##### Topic 3 - "Entertainment" : Not too sure if this topic is so relvant to the corpus. But it is all about entertainment. 
+##### Topic 4 - "UKIP" : I think these news are mainly talking about the Nigel Farage and his party in the right-wing view of immgration and racists views(supporters)
+##### Topic 5 - "Conservative Party" : This topic mainly discuss David Cameron and his convservative party. 
+
+###1(f)
+```{r}
+max<-apply(doc_topics, 2, which.max)
+
+which.max2<-function(x){
+  which(x == sort(x,partial=(k-1))[k-1])
+}
+k<-30
+max2<- apply(doc_topics, 2, which.max2)
+max2<-sapply(max2, max)
+
+index<-seq(1:length(max2))
+top2<-data.frame(max = max, max2 = max2, 
+                 index = index, day = as.integer(Q1CorpSub[["day"]]$day), paperName = Q1CorpSub[["paperName"]]$paperName)
+
+telegraph <- subset(top2,paperName== "telegraph")
+telegraph <- telegraph[with(telegraph,order(day)),]
+
+z<-ggplot(telegraph, aes(x=day, y=max, pch="First"))
+z + geom_point(aes(x=day, y=max2, pch="Second")) +theme_bw() + 
+  ylab("Topic Number") + ggtitle("Telegraph over Topics") + geom_point() + xlab(NULL) + 
+  scale_shape_manual(values=c(18, 1), name = "Topic Rank") 
+```
+
+
+```{r}
+guardian <- subset(top2,paperName== "guardian")
+guardian <- guardian[with(guardian,order(day)),]
+
+z<-ggplot(guardian, aes(x=day, y=max, pch="First"))
+z + geom_point(aes(x=day, y=max2, pch="Second")) +theme_bw() + 
+  ylab("Topic Number") + ggtitle("Guardian over Topics") + geom_point() + xlab(NULL) + 
+  scale_shape_manual(values=c(18, 1), name = "Topic Rank") 
+```
+```{r}
+#plot top 1 topic from both papers
+both_first <- ggplot() +
+      # blue plot
+      geom_point(data = guardian, aes(x=day, y=max),pch = 0) +
+      # red plot
+      geom_point(data=telegraph, aes(x=day, y=max),pch = 2) + theme_bw() + 
+  ylab("Topic Number") + ggtitle("Guardian & Telegraph TOP Topic") + geom_point() + xlab(NULL)
+both_first
+```
+
+```{r}
+#plot second top topic from both papers
+both_second <- ggplot() +
+      # blue plot
+      geom_point(data = guardian, aes(x=day, y=max2),pch = 0) +
+      # red plot
+      geom_point(data=telegraph, aes(x=day, y=max2),pch = 2) + theme_bw() + 
+  ylab("Topic Number") + ggtitle("Guardian & Telegraph SECOND TOP Topic") + geom_point() + xlab(NULL)
+both_second
+```
+
+##### It seems that Telegraph has more articles about topic 22, 26, and 20; while, Guardian has more articles about topic 13, 14, 15. I also plotted the first and second top topic from each paper in the same chart. Clearly, these two newspaper rarely share same topic on the same day. Also, I think telegraph tends to focus on the same topic a few days in a row. 
+
+###1(g)
+
+```{r}
+avg_topic<-as.data.frame(TM@gamma[,top5_topic$topic_number])
+avg_topic["paperName"] <- Q1CorpSub[["paperName"]]$paperName
+avg_topic["day"] <- as.integer(Q1CorpSub[["day"]]$day)
+avg_df <- data.frame(matrix(NA,ncol=6,nrow = 1))
+
+for (i in top4_list) {
+  s <- colSums(avg_topic[with(avg_topic,avg_topic["paperName"]==i),][,1:5])
+  count <- nrow(avg_topic[with(avg_topic,avg_topic["paperName"]==i),])
+  avg_df[i,2:6]<- s / count
+  avg_df[i,1] <- i
+}
+
+#drop out the first row... 
+avg_df <- avg_df[2:5,]
+colnames(avg_df) <- c("paperName",top5_topic$topic_number)
+
+melt_d <- melt(avg_df,id.vars = "paperName")
+
+ggplot(melt_d,aes(x=paperName,y=value,fill=variable))+geom_bar(stat="identity",position="dodge")
+
+print(avg_df)
+```
+##### 1) Telegraph and Guardian are really different. See the second (#14), third(#15), and fourth (#8) between these 2 papers. Guardian reached to the peak, while telegraph has the lowest. 
+##### 2) Times is regarded as a center-right political paper, which seems to be proven here as it covers all top topics evenly. 
+
+
+##2
+###2(a)
+```{r}
+TM1<-LDA(Q1dfm_trim, k = 30, method = "Gibbs",  control = list(seed = 1,iter = 3000))
+#TM@iter
+```
+###2(b)
+```{r}
+#original run
+betas <- TM@beta
+
+betas1 <- TM1@beta
+
+#create a dataframe and calculate cosine similarity 
+cosine_sim <- data.frame(matrix(NA,ncol=3,nrow = 900))
+for (i in 1:30) {
+  for (j in 1:30){
+    old <- betas[i,]
+    new <- betas1[j,]
+    cosine_sim[(i-1)*30+j,3] <- cosine(old,new)
+    cosine_sim[(i-1)*30+j,1] <- i
+    cosine_sim[(i-1)*30+j,2] <- j
+  }
+}
+
+colnames(cosine_sim)<- c("old_topic","new_topic","cosine_similarity")
+
+similar_topics <- data.frame(matrix(NA,ncol=2,nrow = 30))
+for (i in 1:30) {
+  h<-cosine_sim[with(cosine_sim,new_topic==i),]
+  similar_topics[i,2]<- h[with(h,which.max(cosine_similarity)),]$old_topic
+  similar_topics[i,1] <- i 
+}
+
+colnames(similar_topics) <- c("new_topic","old_topic")
+print(similar_topics)
+
+```
+
+###2(c)
+```{r}
+top30_terms1<-get_terms(TM1,10)
+
+count_of_share_word = 0
+
+for (i in 1:30) {
+  new_word = top30_terms1[,i]
+  old_word = top30_terms[,similar_topics[i,2]]
+  common = length(Reduce(intersect, list(new_word,old_word)))
+  count_of_share_word = count_of_share_word + common
+}
+
+print(count_of_share_word/30)
+
+```
+###2(d)
+```{r}
+TMA<-LDA(Q1dfm_trim, k = 5, method = "Gibbs",  control = list(seed = 10012,iter = 3000))
+TMA1<-LDA(Q1dfm_trim, k = 5, method = "Gibbs",  control = list(seed = 1,iter = 3000))
+```
+
+```{r}
+betasa <- TMA@beta
+
+betasa1 <- TMA1@beta
+
+#create a dataframe
+cosine_sim_a <- data.frame(matrix(NA,ncol=3,nrow = 25))
+for (i in 1:5) {
+  for (j in 1:5){
+    old <- betasa[i,]
+    new <- betasa1[j,]
+    cosine_sim_a[(i-1)*5+j,3] <- cosine(old,new)
+    cosine_sim_a[(i-1)*5+j,1] <- i
+    cosine_sim_a[(i-1)*5+j,2] <- j
+  }
+}
+
+colnames(cosine_sim_a)<- c("old_topic","new_topic","cosine_similarity")
+
+similar_topics_a <- data.frame(matrix(NA,ncol=2,nrow = 5))
+for (i in 1:5) {
+  h<-cosine_sim_a[with(cosine_sim_a,new_topic==i),]
+  similar_topics_a[i,2]<- h[with(h,which.max(cosine_similarity)),]$old_topic
+  similar_topics_a[i,1] <- i 
+}
+
+colnames(similar_topics_a) <- c("new_topic","old_topic")
+print(similar_topics_a)
+
+```
+
+```{r}
+top30_termsa<-get_terms(TMA,10)
+top30_termsa1 <- get_terms(TMA1,10)
+
+count_of_share_word_a = 0
+
+for (i in 1:5) {
+  new_word = top30_termsa1[,i]
+  old_word = top30_termsa[,similar_topics_a[i,2]]
+  common = length(Reduce(intersect, list(new_word,old_word)))
+  count_of_share_word_a = count_of_share_word_a + common
+}
+
+print(count_of_share_word_a/5)
+```
+#####It is more stable when the topic number is reduced. It makes sense, for example, when there is only one topic, this topic for sure share 100% of the word. 
