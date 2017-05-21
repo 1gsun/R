@@ -1,15 +1,15 @@
 # textasdata final project 
 This is the final project as one of the co-authors. 
 
-## Below is my contribution to the code: 
-### Pre-process.ipynb
+### Below is my contribution to the code: 
+#### Pre-process.ipynb
 This python code provides:   
 1) A code to extract information from the British National Corpus (BNC) 
 2) A code to translate the .xml file to .txt for the BNC   
 3) A code to move all the .txt file into one single folder for the BNC    
 4) A code to move all the .txt file into one single folder for the Open American National Corpus (OANC)
 
-### Analysis 1.Rmd
+#### Analysis 1.Rmd
 This R code provides:    
 1) A code to intergrate the BNCmeta data with the BNC
 2) A code to filter desired the corpus for BNC
