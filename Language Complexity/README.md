@@ -2,8 +2,8 @@
 This is the final project as one of the co-authors. 
 
 ## Data:
-British National Corpus, XML edition,  http://ota.ox.ac.uk/desc/2554
-The Open American National Corpus,  http://www.anc.org/data/oanc/download/
+British National Corpus, XML edition(BNC): http://ota.ox.ac.uk/desc/2554  
+The Open American National Corpus(OANC): http://www.anc.org/data/oanc/download/
 
 ## Below is my code contributions: 
 ### Pre-process.ipynb
