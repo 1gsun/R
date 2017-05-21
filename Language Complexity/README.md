@@ -9,7 +9,7 @@ This python code provides:
 3) A code to move all the .txt file into one single folder for the BNC    
 4) A code to move all the .txt file into one single folder for the Open American National Corpus (OANC)
 
-#### Analysis 1.Rmd
+#### Analysis 1.Rmd (https://cdn.rawgit.com/1gsun/R/70b6c29c/Language%20Complexity/Analysis%201.nb.html)
 This R code provides:    
 1) A code to intergrate the BNCmeta data with the BNC
 2) A code to filter desired the corpus for BNC
